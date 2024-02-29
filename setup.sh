@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-# BAMF: A FreeBSD setup script providing BSD, Apache, MySQL, and FastCGI
-#
-# Copyright (C) 2022 Joshua Lee Ockert <torstenvl@gmail.com>
-# https://github.com/torstenvl
-#
+# Copyright (C) 2024 Joshua Lee Ockert
+# THIS WORK IS PROVIDED "AS IS" WITH NO WARRANTY OF ANY KIND. THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY, FITNESS, NON-INFRINGEMENT, AND TITLE ARE
+# EXPRESSLY DISCLAIMED. NO AUTHOR SHALL BE LIABLE UNDER ANY THEORY OF LAW
+# FOR ANY DAMAGES OF ANY KIND RESULTING FROM THE USE OF THIS WORK.
 # Permission to use, copy, modify, and/or distribute this work for any
 # purpose is hereby granted, provided this notice appears in all copies.
 
@@ -62,10 +62,23 @@ export PATH="/usr/local/sbin:${HOME}/.bin:${PATH}"
 export EDITOR="emacs"
 export GPG_TTY=$(tty)
 
-PS1="[\[\033[1m\]\t\[\033[m\] \[\033[1;31m\]\u@\h\[\033[m\] (bash) \[\e[32;1m\]\w\[\033[m\]] \$ "
-export BASH_SILENCE_DEPRECATION_WARNING=1
-export HISTFILE="${HOME}/.config/shell/.bash_history"
-[ -f /usr/local/etc/bash_completion ] && . /usr/local/etc/bash_completion
+if [[ "${ZSH_NAME}" == "zsh" ]]; then
+    SHELL_SESSIONS_DISABLE=1
+    PS1='[%B%D{%H:%M:%S} %F{red}%n@%m%f zsh %F{green}%~%f%b] $ '
+    autoload -Uz bracketed-paste-magic
+    zle -N bracketed-paste bracketed-paste-magic
+    autoload -Uz url-quote-magic
+    zle -N self-insert url-quote-magic
+    unsetopt BEEP
+    setopt sharehistory
+elif [[ "${SHELL}" =~ "bin/bash" ]] && [[ "${HISTFILE}" =~ "bash" ]]; then
+    PS1="[\[\033[1m\]\t\[\033[m\] \[\033[1;31m\]\u@\h\[\033[m\] bash \[\e[32;1m\]\w\[\033[m\]] \$ "
+    export BASH_SILENCE_DEPRECATION_WARNING=1
+    export HISTFILE="${HOME}/.config/shell/.bash_history"
+    [ -f /usr/local/etc/bash_completion ] && . /usr/local/etc/bash_completion
+else
+    PS1="[\A \u@\h sh \w] \$ "
+fi
 
 alias cp='cp -iv'
 alias mv='mv -iv'
@@ -96,16 +109,14 @@ EOF
 
 # BACKUP/RESTORE VIA MAKE
 cat << EOF > /home/${USER}/Makefile
-bd != date '+%Y%m%d-%s'
-.PHONY: backup
+.PHONY: backup restore select clean
 backup:
 	@echo -n "Backing up files... "
-	@tar czf backup-\${bd}.tgz Makefile readme-* .bash_profile .inputrc www 
+	@tar czf backup-\$(date +%Y%m%d-%s).tgz Makefile readme-* .bash_profile .inputrc www
 	@echo "done!"
 	@echo
 	@echo
 
-.PHONY: restore
 restore:
 	@echo -n "Restoring latest backup... "
 	@tar xf \`ls backup*.tgz | sort -r | uniq | head -n 1\`
@@ -113,13 +124,11 @@ restore:
 	@echo
 	@echo
 
-.PHONY: select
 select:
 	@echo "Files are:"
 	@ls -FGAlh backup-*
 	@rm -i backup-*
 
-.PHONY: clean
 clean: 
 	@echo -n "Cleaning *~ and .*~ files... "
 	@rm -f *~
